@@ -178,22 +178,34 @@ function setupEDA() {
       }
       return response.json();
     })
-    .then((rows) => {
-      const data = Array.isArray(rows) ? rows : rows.data || [];
-      if (!data.length) {
-        throw new Error("EDA data is empty");
-      }
+    .then((edadata) => {
+      // агрегированные счётчики из eda_data.json [file:56]
+      const realCount = edadata.class_counts?.Real ?? 0;
+      const fraudCount = edadata.class_counts?.Fake ?? 0;
+      const total = realCount + fraudCount;
 
-      let realCount = 0;
-      let fraudCount = 0;
+      if (totalEl) totalEl.textContent = total.toLocaleString();
+      if (realEl) realEl.textContent = realCount.toLocaleString();
+      if (fraudEl) fraudEl.textContent = fraudCount.toLocaleString();
 
-      let shortCount = 0;
-      let mediumCount = 0;
-      let longCount = 0;
+      // длины по бинам (all)
+      const shortCount = edadata.length_buckets?.all?.short ?? 0;
+      const mediumCount = edadata.length_buckets?.all?.medium ?? 0;
+      const longCount = edadata.length_buckets?.all?.long ?? 0;
 
-      const lenBinsReal = { short: 0, medium: 0, long: 0 };
-      const lenBinsFake = { short: 0, medium: 0, long: 0 };
+      // длины по классам
+      const lenBinsReal = edadata.length_buckets?.by_class?.real ?? {
+        short: 0,
+        medium: 0,
+        long: 0
+      };
+      const lenBinsFake = edadata.length_buckets?.by_class?.fake ?? {
+        short: 0,
+        medium: 0,
+        long: 0
+      };
 
+      // пропуски по полям (в долях) → сразу переведём в проценты
       const fields = [
         "company_profile",
         "requirements",
@@ -205,59 +217,18 @@ function setupEDA() {
       const missingReal = {};
       const missingFake = {};
       fields.forEach((f) => {
-        missingReal[f] = 0;
-        missingFake[f] = 0;
+        const r = edadata.missing?.real?.[f] ?? 0;
+        const fa = edadata.missing?.fake?.[f] ?? 0;
+        missingReal[f] = r * 100;
+        missingFake[f] = fa * 100;
       });
 
-      data.forEach((row) => {
-        const isFraud =
-          row.fraudulent === 1 ||
-          row.fraudulent === "1" ||
-          row.fraudulent === true;
-
-        if (isFraud) fraudCount++;
-        else realCount++;
-
-        const desc = (row.description || "").toString();
-        const len = desc.length;
-
-        let bucket = null;
-        if (len < 300) {
-          bucket = "short";
-          shortCount++;
-        } else if (len < 800) {
-          bucket = "medium";
-          mediumCount++;
-        } else {
-          bucket = "long";
-          longCount++;
-        }
-
-        if (bucket) {
-          if (isFraud) lenBinsFake[bucket]++;
-          else lenBinsReal[bucket]++;
-        }
-
-        fields.forEach((f) => {
-          const v = row[f];
-          const isMissing =
-            v === null || v === undefined || v === "" || String(v).trim() === "";
-          if (isMissing) {
-            if (isFraud) missingFake[f]++;
-            else missingReal[f]++;
-          }
-        });
-      });
-
-      const total = realCount + fraudCount;
-      if (totalEl) totalEl.textContent = total.toLocaleString();
-      if (realEl) realEl.textContent = realCount.toLocaleString();
-      if (fraudEl) fraudEl.textContent = fraudCount.toLocaleString();
-
+      // рисуем все четыре графика
       renderFraudChart(realCount, fraudCount);
       renderLengthChart(shortCount, mediumCount, longCount);
       renderLengthByClassChart(lenBinsReal, lenBinsFake);
-      renderMissingChart(fields, missingReal, missingFake, realCount, fraudCount);
+      // realCount/fraudCount здесь уже не нужны, передаём фиктивные 100
+      renderMissingChart(fields, missingReal, missingFake, 100, 100);
     })
     .catch((error) => {
       console.warn("EDA JSON load failed, using fallback:", error);
