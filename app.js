@@ -162,6 +162,8 @@ function showDemoResult(proba, resultEl, messageEl, probEl, statusEl) {
 // --------- EDA logic using eda_data.json ----------
 let fraudChart = null;
 let lengthChart = null;
+let lengthByClassChart = null;
+let missingChart = null;
 
 function setupEDA() {
   const jsonPath = "data/eda_data.json";
@@ -178,15 +180,104 @@ function setupEDA() {
       }
       return response.json();
     })
-    .then((data) => {
-      const stats = extractStats(data);
+    .then((rows) => {
+      const data = Array.isArray(rows) ? rows : rows.data || [];
+      if (!data.length) {
+        throw new Error("EDA data is empty");
+      }
 
-      if (totalEl) totalEl.textContent = stats.total.toLocaleString();
-      if (realEl) realEl.textContent = stats.real.toLocaleString();
-      if (fraudEl) fraudEl.textContent = stats.fraud.toLocaleString();
+      // базовые счётчики
+      let realCount = 0;
+      let fraudCount = 0;
 
-      renderFraudChart(stats.real, stats.fraud);
-      renderLengthChart(stats.short, stats.medium, stats.long);
+      // длины описаний по бинам (общие)
+      let shortCount = 0;
+      let mediumCount = 0;
+      let longCount = 0;
+
+      // длины по классам
+      const lenBinsReal = { short: 0, medium: 0, long: 0 };
+      const lenBinsFake = { short: 0, medium: 0, long: 0 };
+
+      // пропуски по полям для real и fake
+      const fields = [
+        "company_profile",
+        "requirements",
+        "benefits",
+        "salary_range",
+        "employment_type",
+        "industry"
+      ];
+      const missingReal = {};
+      const missingFake = {};
+      fields.forEach((f) => {
+        missingReal[f] = 0;
+        missingFake[f] = 0;
+      });
+
+      data.forEach((row) => {
+        const isFraud =
+          row.fraudulent === 1 ||
+          row.fraudulent === "1" ||
+          row.fraudulent === true;
+
+        if (isFraud) {
+          fraudCount++;
+        } else {
+          realCount++;
+        }
+
+        // длина description
+        const desc = (row.description || "").toString();
+        const len = desc.length;
+
+        let bucket = null;
+        if (len < 300) {
+          bucket = "short";
+          shortCount++;
+        } else if (len < 800) {
+          bucket = "medium";
+          mediumCount++;
+        } else {
+          bucket = "long";
+          longCount++;
+        }
+
+        if (bucket) {
+          if (isFraud) {
+            lenBinsFake[bucket]++;
+          } else {
+            lenBinsReal[bucket]++;
+          }
+        }
+
+        // пропуски по полям
+        fields.forEach((f) => {
+          const v = row[f];
+          const isMissing =
+            v === null || v === undefined || v === "" || String(v).trim() === "";
+          if (isMissing) {
+            if (isFraud) {
+              missingFake[f]++;
+            } else {
+              missingReal[f]++;
+            }
+          }
+        });
+      });
+
+      const total = realCount + fraudCount;
+      if (totalEl) totalEl.textContent = total.toLocaleString();
+      if (realEl) realEl.textContent = realCount.toLocaleString();
+      if (fraudEl) fraudEl.textContent = fraudCount.toLocaleString();
+
+      // старые графики
+      renderFraudChart(realCount, fraudCount);
+      renderLengthChart(shortCount, mediumCount, longCount);
+
+      // новые графики
+      renderLengthByClassChart(lenBinsReal, lenBinsFake);
+      renderMissingChart(fields, missingReal, missingFake, realCount, fraudCount);
     })
     .catch((error) => {
       console.warn("EDA JSON load failed, using fallback:", error);
@@ -197,6 +288,7 @@ function setupEDA() {
         edaError.classList.remove("hidden");
       }
 
+      // fallback: только базовые два графика
       const fallbackStats = {
         total: 27880,
         real: 17014,
@@ -219,54 +311,13 @@ function setupEDA() {
     });
 }
 
-function extractStats(data) {
-  let total = 27880;
-  let real = 17014;
-  let fraud = 10866;
-  let short = 5234;
-  let medium = 12456;
-  let long = 10190;
-
-  if (data && typeof data === "object") {
-    if (data.summary && typeof data.summary.total_count === "number") {
-      total = data.summary.total_count;
-    }
-    if (data.summary && typeof data.summary.real_count === "number") {
-      real = data.summary.real_count;
-    }
-    if (data.summary && typeof data.summary.fraud_count === "number") {
-      fraud = data.summary.fraud_count;
-    }
-    if (data.length_stats && typeof data.length_stats.short === "number") {
-      short = data.length_stats.short;
-    }
-    if (data.length_stats && typeof data.length_stats.medium === "number") {
-      medium = data.length_stats.medium;
-    }
-    if (data.length_stats && typeof data.length_stats.long === "number") {
-      long = data.length_stats.long;
-    }
-    if (!data.summary && data.fraudulent) {
-      const r = Number(data.fraudulent["0"]);
-      const f = Number(data.fraudulent["1"]);
-      if (!isNaN(r) && !isNaN(f)) {
-        real = r;
-        fraud = f;
-        total = r + f;
-      }
-    }
-  }
-
-  return { total, real, fraud, short, medium, long };
-}
-
 function renderFraudChart(realCount, fraudCount) {
   const ctx = document.getElementById("fraud-chart");
   if (!ctx || typeof Chart === "undefined") return;
 
-  if (window.fraudChart) window.fraudChart.destroy();
+  if (fraudChart) fraudChart.destroy();
 
-  window.fraudChart = new Chart(ctx, {
+  fraudChart = new Chart(ctx, {
     type: "bar",
     data: {
       labels: ["Legitimate (0)", "Fraudulent (1)"],
@@ -301,9 +352,9 @@ function renderLengthChart(shortCount, mediumCount, longCount) {
   const ctx = document.getElementById("length-chart");
   if (!ctx || typeof Chart === "undefined") return;
 
-  if (window.lengthChart) window.lengthChart.destroy();
+  if (lengthChart) lengthChart.destroy();
 
-  window.lengthChart = new Chart(ctx, {
+  lengthChart = new Chart(ctx, {
     type: "bar",
     data: {
       labels: ["Short (<300)", "Medium (300–800)", "Long (>800)"],
@@ -332,4 +383,122 @@ function renderLengthChart(shortCount, mediumCount, longCount) {
       }
     }
   });
+}
+
+function renderLengthByClassChart(lenBinsReal, lenBinsFake) {
+  const ctx = document.getElementById("length-by-class-chart");
+  if (!ctx || typeof Chart === "undefined") return;
+
+  if (lengthByClassChart) lengthByClassChart.destroy();
+
+  lengthByClassChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Short (<300)", "Medium (300–800)", "Long (>800)"],
+      datasets: [
+        {
+          label: "Real",
+          data: [
+            lenBinsReal.short,
+            lenBinsReal.medium,
+            lenBinsReal.long
+          ],
+          backgroundColor: "rgba(56, 189, 248, 0.7)"
+        },
+        {
+          label: "Fake",
+          data: [
+            lenBinsFake.short,
+            lenBinsFake.medium,
+            lenBinsFake.long
+          ],
+          backgroundColor: "rgba(248, 113, 113, 0.8)"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#9ca3af" }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#9ca3af" } },
+        y: {
+          ticks: { color: "#9ca3af", precision: 0 },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function renderMissingChart(
+  fields,
+  missingReal,
+  missingFake,
+  realCount,
+  fraudCount
+) {
+  const ctx = document.getElementById("missing-chart");
+  if (!ctx || typeof Chart === "undefined") return;
+
+  if (missingChart) missingChart.destroy();
+
+  const labels = fields.map((f) => f.replace("_", " "));
+  const realPerc = fields.map((f) =>
+    realCount ? (missingReal[f] / realCount) * 100 : 0
+  );
+  const fakePerc = fields.map((f) =>
+    fraudCount ? (missingFake[f] / fraudCount) * 100 : 0
+  );
+
+  missingChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Real missing, %",
+          data: realPerc,
+          backgroundColor: "rgba(56, 189, 248, 0.8)"
+        },
+        {
+          label: "Fake missing, %",
+          data: fakePerc,
+          backgroundColor: "rgba(248, 113, 113, 0.9)"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#9ca3af" }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) =>
+              `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#9ca3af" }
+        },
+        y: {
+          ticks: { color: "#9ca3af" },
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+}
 }
