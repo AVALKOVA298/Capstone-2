@@ -214,21 +214,19 @@ function setupEDA() {
         "employment_type",
         "industry"
       ];
-      const missingReal = {};
-      const missingFake = {};
-      fields.forEach((f) => {
-        const r = edadata.missing?.real?.[f] ?? 0;
-        const fa = edadata.missing?.fake?.[f] ?? 0;
-        missingReal[f] = r * 100;
-        missingFake[f] = fa * 100;
-      });
+    const missingReal = {};
+const missingFake = {};
+fields.forEach((f) => {
+  missingReal[f] = edadata.missing?.real?.[f] ?? 0;   // уже проценты
+  missingFake[f] = edadata.missing?.fake?.[f] ?? 0;
+});
 
       // рисуем все четыре графика
       renderFraudChart(realCount, fraudCount);
       renderLengthChart(shortCount, mediumCount, longCount);
       renderLengthByClassChart(lenBinsReal, lenBinsFake);
       // realCount/fraudCount здесь уже не нужны, передаём фиктивные 100
-      renderMissingChart(fields, missingReal, missingFake, 100, 100);
+      renderMissingChart(fields, missingReal, missingFake);
     })
     .catch((error) => {
       console.warn("EDA JSON load failed, using fallback:", error);
@@ -386,25 +384,16 @@ function renderLengthByClassChart(lenBinsReal, lenBinsFake) {
 });
 }
 
-function renderMissingChart(
-  fields,
-  missingReal,
-  missingFake,
-  realCount,
-  fraudCount
-) {
+function renderMissingChart(fields, missingReal, missingFake) {
+
   const ctx = document.getElementById("missing-chart");
   if (!ctx || typeof Chart === "undefined") return;
 
   if (missingChart) missingChart.destroy();
 
   const labels = fields.map((f) => f.replace("_", " "));
-  const realPerc = fields.map((f) =>
-    realCount ? (missingReal[f] / realCount) * 100 : 0
-  );
-  const fakePerc = fields.map((f) =>
-    fraudCount ? (missingFake[f] / fraudCount) * 100 : 0
-  );
+const realPerc = fields.map((f) => missingReal[f] ?? 0);
+const fakePerc = fields.map((f) => missingFake[f] ?? 0);
 
   missingChart = new Chart(ctx, {
     type: "bar",
