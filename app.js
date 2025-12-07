@@ -115,20 +115,21 @@ function setupPredictionForm() {
         legitPct +
         "%";
 
-      statusEl.textContent = "Prediction received.";
-    } catch (err) {
-      console.error(err);
-      errorEl.textContent =
-        "Network/server error or /predict is not available. On GitHub Pages this is normal without a backend.";
-      errorEl.classList.remove("hidden");
-      statusEl.textContent = "Error.";
-    } finally {
-      predictButton.disabled = false;
-      setTimeout(() => {
-        statusEl.textContent = "";
-      }, 2000);
-    }
-  });
+          statusEl.textContent = "Prediction received.";
+  } catch (err) {
+    console.warn("Real backend not available, using demo prediction.", err);
+
+    // -------- DEMO-РЕЖИМ: случайный прогноз --------
+    const fakeProba = 0.02 + Math.random() * 0.83;
+
+    showDemoResult(fakeProba, resultEl, messageEl, probEl, statusEl);
+  } finally {
+    predictButton.disabled = false;
+    setTimeout(() => {
+      statusEl.textContent = "";
+    }, 2000);
+  }
+});
 }
 
 // --------- EDA logic using eda_data.json ----------
