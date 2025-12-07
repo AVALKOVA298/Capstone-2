@@ -67,8 +67,7 @@ function setupPredictionForm() {
     statusEl.textContent = "Sending request...";
 
     try {
-      // TODO: замени "/predict" на URL твоего бэкенда, например:
-      // const response = await fetch("https://your-backend.com/predict", { ... })
+      // TODO: заменить "/predict" на URL настоящего бэкенда
       const response = await fetch("/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,21 +114,49 @@ function setupPredictionForm() {
         legitPct +
         "%";
 
-          statusEl.textContent = "Prediction received.";
-  } catch (err) {
-    console.warn("Real backend not available, using demo prediction.", err);
+      statusEl.textContent = "Prediction received.";
+    } catch (err) {
+      console.warn("Real backend not available, using demo prediction.", err);
 
-    // -------- DEMO-РЕЖИМ: случайный прогноз --------
-    const fakeProba = 0.02 + Math.random() * 0.83;
+      // -------- DEMO-РЕЖИМ: случайный прогноз --------
+      const fakeProba = 0.02 + Math.random() * 0.83;
 
-    showDemoResult(fakeProba, resultEl, messageEl, probEl, statusEl);
-  } finally {
-    predictButton.disabled = false;
-    setTimeout(() => {
-      statusEl.textContent = "";
-    }, 2000);
+      showDemoResult(fakeProba, resultEl, messageEl, probEl, statusEl);
+    } finally {
+      predictButton.disabled = false;
+      setTimeout(() => {
+        statusEl.textContent = "";
+      }, 2000);
+    }
+  });
+}
+
+// функция для демо-режима
+function showDemoResult(proba, resultEl, messageEl, probEl, statusEl) {
+  const fraudProba = Math.min(Math.max(proba, 0), 1);
+  const fraudPct = (fraudProba * 100).toFixed(1);
+  const legitPct = (100 - fraudProba * 100).toFixed(1);
+
+  resultEl.classList.remove("hidden", "success", "danger");
+
+  if (fraudProba < 0.5) {
+    resultEl.classList.add("success");
+    messageEl.textContent =
+      "This job posting appears legitimate (demo mode).";
+  } else {
+    resultEl.classList.add("danger");
+    messageEl.textContent =
+      "Warning: high fraud probability (demo mode).";
   }
-});
+
+  probEl.textContent =
+    "Fraud probability: " +
+    fraudPct +
+    "% · Legitimate probability: " +
+    legitPct +
+    "%";
+
+  statusEl.textContent = "Demo prediction (no backend).";
 }
 
 // --------- EDA logic using eda_data.json ----------
@@ -148,11 +175,11 @@ function setupEDA() {
     .then((response) => {
       if (!response.ok) {
         throw new Error("EDA json not found: " + response.status);
-}
+      }
       return response.json();
     })
     .then((data) => {
-            const stats = extractStats(data);
+      const stats = extractStats(data);
 
       if (totalEl) totalEl.textContent = stats.total.toLocaleString();
       if (realEl) realEl.textContent = stats.real.toLocaleString();
@@ -191,6 +218,7 @@ function setupEDA() {
       );
     });
 }
+
 function extractStats(data) {
   let total = 27880;
   let real = 17014;
@@ -231,6 +259,7 @@ function extractStats(data) {
 
   return { total, real, fraud, short, medium, long };
 }
+
 function renderFraudChart(realCount, fraudCount) {
   const ctx = document.getElementById("fraud-chart");
   if (!ctx || typeof Chart === "undefined") return;
@@ -287,13 +316,13 @@ function renderLengthChart(shortCount, mediumCount, longCount) {
       ]
     },
     options: {
-responsive: true,
+      responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false }
       },
       scales: {
-                x: {
+        x: {
           ticks: { color: "#9ca3af" }
         },
         y: {
