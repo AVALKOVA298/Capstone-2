@@ -501,4 +501,3 @@ function renderMissingChart(
     }
   });
 }
-}
