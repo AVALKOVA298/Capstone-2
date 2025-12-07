@@ -350,3 +350,43 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* Word cloud style (EDA) */
+
+.wordcloud-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.wordcloud-card {
+  background: radial-gradient(circle at top left, #020617, #020617);
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 10px 12px 12px;
+}
+
+.wordcloud-card h4 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+
+.wordcloud-text {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #e5e7eb;
+}
+
+.wordcloud-text.real {
+  color: #a5b4fc;
+}
+
+.wordcloud-text.fake {
+  color: #fda4af;
+}
+
+@media (min-width: 768px) {
+  .wordcloud-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
