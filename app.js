@@ -118,9 +118,8 @@ function setupPredictionForm() {
     } catch (err) {
       console.warn("Real backend not available, using demo prediction.", err);
 
-      // -------- DEMO-РЕЖИМ: случайный прогноз --------
+      // DEMO: случайный прогноз
       const fakeProba = 0.02 + Math.random() * 0.83;
-
       showDemoResult(fakeProba, resultEl, messageEl, probEl, statusEl);
     } finally {
       predictButton.disabled = false;
@@ -131,7 +130,6 @@ function setupPredictionForm() {
   });
 }
 
-// функция для демо-режима
 function showDemoResult(proba, resultEl, messageEl, probEl, statusEl) {
   const fraudProba = Math.min(Math.max(proba, 0), 1);
   const fraudPct = (fraudProba * 100).toFixed(1);
@@ -186,20 +184,16 @@ function setupEDA() {
         throw new Error("EDA data is empty");
       }
 
-      // базовые счётчики
       let realCount = 0;
       let fraudCount = 0;
 
-      // длины описаний по бинам (общие)
       let shortCount = 0;
       let mediumCount = 0;
       let longCount = 0;
 
-      // длины по классам
       const lenBinsReal = { short: 0, medium: 0, long: 0 };
       const lenBinsFake = { short: 0, medium: 0, long: 0 };
 
-      // пропуски по полям для real и fake
       const fields = [
         "company_profile",
         "requirements",
@@ -221,13 +215,9 @@ function setupEDA() {
           row.fraudulent === "1" ||
           row.fraudulent === true;
 
-        if (isFraud) {
-          fraudCount++;
-        } else {
-          realCount++;
-        }
+        if (isFraud) fraudCount++;
+        else realCount++;
 
-        // длина description
         const desc = (row.description || "").toString();
         const len = desc.length;
 
@@ -244,24 +234,17 @@ function setupEDA() {
         }
 
         if (bucket) {
-          if (isFraud) {
-            lenBinsFake[bucket]++;
-          } else {
-            lenBinsReal[bucket]++;
-          }
+          if (isFraud) lenBinsFake[bucket]++;
+          else lenBinsReal[bucket]++;
         }
 
-        // пропуски по полям
         fields.forEach((f) => {
           const v = row[f];
           const isMissing =
             v === null || v === undefined || v === "" || String(v).trim() === "";
           if (isMissing) {
-            if (isFraud) {
-              missingFake[f]++;
-            } else {
-              missingReal[f]++;
-            }
+            if (isFraud) missingFake[f]++;
+            else missingReal[f]++;
           }
         });
       });
@@ -271,11 +254,8 @@ function setupEDA() {
       if (realEl) realEl.textContent = realCount.toLocaleString();
       if (fraudEl) fraudEl.textContent = fraudCount.toLocaleString();
 
-      // старые графики
       renderFraudChart(realCount, fraudCount);
       renderLengthChart(shortCount, mediumCount, longCount);
-
-      // новые графики
       renderLengthByClassChart(lenBinsReal, lenBinsFake);
       renderMissingChart(fields, missingReal, missingFake, realCount, fraudCount);
     })
@@ -288,7 +268,6 @@ function setupEDA() {
         edaError.classList.remove("hidden");
       }
 
-      // fallback: только базовые два графика
       const fallbackStats = {
         total: 27880,
         real: 17014,
@@ -395,45 +374,45 @@ function renderLengthByClassChart(lenBinsReal, lenBinsFake) {
     type: "bar",
     data: {
       labels: ["Short (<300)", "Medium (300–800)", "Long (>800)"],
-      datasets: [
-        {
-          label: "Real",
-          data: [
-            lenBinsReal.short,
-            lenBinsReal.medium,
-            lenBinsReal.long
-          ],
-          backgroundColor: "rgba(56, 189, 248, 0.7)"
-        },
-        {
-          label: "Fake",
-          data: [
-            lenBinsFake.short,
-            lenBinsFake.medium,
-            lenBinsFake.long
-          ],
-          backgroundColor: "rgba(248, 113, 113, 0.8)"
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: { color: "#9ca3af" }
-        }
+          datasets: [
+      {
+        label: "Real",
+        data: [
+          lenBinsReal.short,
+          lenBinsReal.medium,
+          lenBinsReal.long
+        ],
+        backgroundColor: "rgba(56, 189, 248, 0.7)"
       },
-      scales: {
-        x: { ticks: { color: "#9ca3af" } },
-        y: {
-          ticks: { color: "#9ca3af", precision: 0 },
-          beginAtZero: true
-        }
+      {
+        label: "Fake",
+        data: [
+          lenBinsFake.short,
+          lenBinsFake.medium,
+          lenBinsFake.long
+        ],
+        backgroundColor: "rgba(248, 113, 113, 0.8)"
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: { color: "#9ca3af" }
+      }
+    },
+    scales: {
+      x: { ticks: { color: "#9ca3af" } },
+      y: {
+        ticks: { color: "#9ca3af", precision: 0 },
+        beginAtZero: true
       }
     }
-  });
+  }
+});
 }
 
 function renderMissingChart(
