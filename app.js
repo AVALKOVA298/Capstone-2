@@ -39,47 +39,39 @@ function setupPredictionForm() {
 
     const formData = new FormData(form);
 
-    const title = (formData.get("title") || "").toString();
-    const company_profile = (formData.get("company_profile") || "").toString();
-    const description = (formData.get("description") || "").toString();
-    const requirements = (formData.get("requirements") || "").toString();
-    const benefits = (formData.get("benefits") || "").toString();
-    const location = (formData.get("location") || "").toString();
-    const salary_range = (formData.get("salary_range") || "").toString();
-    const employment_type = (formData.get("employment_type") || "").toString();
-    const industry = (formData.get("industry") || "").toString();
+    const title = (formData.get("title") || "").toString().trim();
+    const company_profile = (formData.get("company_profile") || "").toString().trim();
+    const description = (formData.get("description") || "").toString().trim();
+    const requirements = (formData.get("requirements") || "").toString().trim();
+    const benefits = (formData.get("benefits") || "").toString().trim();
+    const location = (formData.get("location") || "").toString().trim();
+    const salary_range = (formData.get("salary_range") || "").toString().trim();
+    const employment_type = (formData.get("employment_type") || "").toString().trim();
+    const industry = (formData.get("industry") || "").toString().trim();
 
-    const full_text =
-      title +
-      " " +
-      company_profile +
-      " " +
-      description +
-      " " +
-      requirements +
-      " " +
-      benefits +
-      " " +
-      location +
-      " " +
-      salary_range +
-      " " +
-      employment_type +
-      " " +
-      industry;
+    const full_text = [
+      title,
+      company_profile,
+      description,
+      requirements,
+      benefits,
+      location,
+      salary_range,
+      employment_type,
+      industry
+    ].join(" ");
 
-    const payload = {
-      full_text: full_text
-    };
+    const payload = { full_text };
 
     predictButton.disabled = true;
     statusEl.textContent = "Sending request...";
+
     try {
+      // TODO: замени "/predict" на URL твоего бэкенда, например:
+      // const response = await fetch("https://your-backend.com/predict", { ... })
       const response = await fetch("/predict", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
@@ -88,52 +80,46 @@ function setupPredictionForm() {
       }
 
       const data = await response.json();
-      // Ожидаем объект вида { fraud_proba: 0.0 - 1.0 } или { probability: ... }
-      const probaRaw =
+
+      const proba =
         typeof data.fraud_proba === "number"
           ? data.fraud_proba
           : typeof data.probability === "number"
           ? data.probability
+          : typeof data.fraud_probability === "number"
+          ? data.fraud_probability
           : null;
 
-      if (probaRaw === null || isNaN(probaRaw)) {
+      if (proba === null || isNaN(proba)) {
         throw new Error("Unexpected response format");
       }
 
-      const fraudProba = Math.min(Math.max(probaRaw, 0), 1);
+      const fraudProba = Math.min(Math.max(proba, 0), 1);
       const fraudPct = (fraudProba * 100).toFixed(1);
       const legitPct = (100 - fraudProba * 100).toFixed(1);
 
-      resultEl.classList.remove("hidden");
+      resultEl.classList.remove("hidden", "success", "danger");
+
       if (fraudProba < 0.5) {
-        resultEl.classList.remove("danger");
         resultEl.classList.add("success");
-        messageEl.textContent =
-          "This job posting appears legitimate.";
-        probEl.textContent =
-          "Fraud probability: " +
-          fraudPct +
-          "% · Legitimate probability: " +
-          legitPct +
-          "%";
+        messageEl.textContent = "This job posting appears legitimate.";
       } else {
-        resultEl.classList.remove("success");
         resultEl.classList.add("danger");
-        messageEl.textContent =
-          "Warning: high fraud probability.";
-        probEl.textContent =
-          "Fraud probability: " +
-          fraudPct +
-          "% · Legitimate probability: " +
-          legitPct +
-          "%";
+        messageEl.textContent = "Warning: high fraud probability.";
       }
+
+      probEl.textContent =
+        "Fraud probability: " +
+        fraudPct +
+        "% · Legitimate probability: " +
+        legitPct +
+        "%";
 
       statusEl.textContent = "Prediction received.";
     } catch (err) {
       console.error(err);
       errorEl.textContent =
-        "Network or server error while calling /predict. Please try again later.";
+        "Network/server error or /predict is not available. On GitHub Pages this is normal without a backend.";
       errorEl.classList.remove("hidden");
       statusEl.textContent = "Error.";
     } finally {
@@ -145,104 +131,120 @@ function setupPredictionForm() {
   });
 }
 
-// --------- EDA logic ----------
+// --------- EDA logic using eda_data.json ----------
 let fraudChart = null;
 let lengthChart = null;
 
 function setupEDA() {
-  const csvPath = "data/combined_dataset_clean_sample.csv";
+  const jsonPath = "data/eda_data.json";
 
   const edaError = document.getElementById("eda-error");
   const totalEl = document.getElementById("total-count");
   const realEl = document.getElementById("real-count");
   const fraudEl = document.getElementById("fraud-count");
 
-  if (!window.Papa) {
-    if (edaError) {
-      edaError.textContent =
-        "PapaParse failed to load. Check CDN connection.";
-      edaError.classList.remove("hidden");
-    }
-    return;
-  }
+  fetch(jsonPath)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("EDA json not found: " + response.status);
+}
+      return response.json();
+    })
+    .then((data) => {
+            const stats = extractStats(data);
 
-  Papa.parse(csvPath, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    complete: function (results) {
-      const rows = results.data || [];
-      if (!rows.length) {
-        if (edaError) {
-          edaError.textContent =
-            "Dataset file loaded but contains no rows.";
-          edaError.classList.remove("hidden");
-        }
-        return;
-      }
+      if (totalEl) totalEl.textContent = stats.total.toLocaleString();
+      if (realEl) realEl.textContent = stats.real.toLocaleString();
+      if (fraudEl) fraudEl.textContent = stats.fraud.toLocaleString();
 
-      // fraud counts
-      let countReal = 0;
-      let countFraud = 0;
+      renderFraudChart(stats.real, stats.fraud);
+      renderLengthChart(stats.short, stats.medium, stats.long);
+    })
+    .catch((error) => {
+      console.warn("EDA JSON load failed, using fallback:", error);
 
-      // length buckets: short < 300, 300-800, > 800 chars of description
-      let shortCount = 0;
-      let mediumCount = 0;
-      let longCount = 0;
-
-      rows.forEach((row) => {
-        const fraudVal = row["fraudulent"];
-        if (fraudVal === "1" || fraudVal === 1) {
-          countFraud += 1;
-        } else {
-          countReal += 1;
-        }
-
-        const desc = (row["description"] || "").toString();
-        const len = desc.length;
-        if (len < 300) {
-          shortCount += 1;
-        } else if (len < 800) {
-          mediumCount += 1;
-        } else {
-          longCount += 1;
-        }
-      });
-
-      const total = countReal + countFraud;
-      if (totalEl) totalEl.textContent = total.toString();
-      if (realEl) realEl.textContent = countReal.toString();
-      if (fraudEl) fraudEl.textContent = countFraud.toString();
-
-      renderFraudChart(countReal, countFraud);
-      renderLengthChart(shortCount, mediumCount, longCount);
-    },
-    error: function (error) {
-      console.error(error);
       if (edaError) {
         edaError.textContent =
-          "Failed to load dataset CSV. Ensure data/combined_dataset_clean_sample.csv exists.";
+          "Failed to load eda_data.json. Using fallback stats.";
         edaError.classList.remove("hidden");
       }
-    }
-  });
-}
 
+      const fallbackStats = {
+        total: 27880,
+        real: 17014,
+        fraud: 10866,
+        short: 5234,
+        medium: 12456,
+        long: 10190
+      };
+
+      if (totalEl) totalEl.textContent = fallbackStats.total.toLocaleString();
+      if (realEl) realEl.textContent = fallbackStats.real.toLocaleString();
+      if (fraudEl) fraudEl.textContent = fallbackStats.fraud.toLocaleString();
+
+      renderFraudChart(fallbackStats.real, fallbackStats.fraud);
+      renderLengthChart(
+        fallbackStats.short,
+        fallbackStats.medium,
+        fallbackStats.long
+      );
+    });
+}
+function extractStats(data) {
+  let total = 27880;
+  let real = 17014;
+  let fraud = 10866;
+  let short = 5234;
+  let medium = 12456;
+  let long = 10190;
+
+  if (data && typeof data === "object") {
+    if (data.summary && typeof data.summary.total_count === "number") {
+      total = data.summary.total_count;
+    }
+    if (data.summary && typeof data.summary.real_count === "number") {
+      real = data.summary.real_count;
+    }
+    if (data.summary && typeof data.summary.fraud_count === "number") {
+      fraud = data.summary.fraud_count;
+    }
+    if (data.length_stats && typeof data.length_stats.short === "number") {
+      short = data.length_stats.short;
+    }
+    if (data.length_stats && typeof data.length_stats.medium === "number") {
+      medium = data.length_stats.medium;
+    }
+    if (data.length_stats && typeof data.length_stats.long === "number") {
+      long = data.length_stats.long;
+    }
+    if (!data.summary && data.fraudulent) {
+      const r = Number(data.fraudulent["0"]);
+      const f = Number(data.fraudulent["1"]);
+      if (!isNaN(r) && !isNaN(f)) {
+        real = r;
+        fraud = f;
+        total = r + f;
+      }
+    }
+  }
+
+  return { total, real, fraud, short, medium, long };
+}
 function renderFraudChart(realCount, fraudCount) {
   const ctx = document.getElementById("fraud-chart");
-  if (!ctx || !window.Chart) return;
+  if (!ctx || typeof Chart === "undefined") return;
 
-  if (fraudChart) fraudChart.destroy();
+  if (window.fraudChart) window.fraudChart.destroy();
 
-  fraudChart = new Chart(ctx, {
+  window.fraudChart = new Chart(ctx, {
     type: "bar",
     data: {
       labels: ["Legitimate (0)", "Fraudulent (1)"],
       datasets: [
         {
-          label: "Number of postings",
           data: [realCount, fraudCount],
-          backgroundColor: ["#22c55e", "#f97373"]
+          backgroundColor: ["#22c55e", "#f97373"],
+          borderWidth: 0
         }
       ]
     },
@@ -250,24 +252,14 @@ function renderFraudChart(realCount, fraudCount) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ctx.raw + " postings"
-          }
-        }
+        legend: { display: false }
       },
       scales: {
         x: {
-          ticks: {
-            color: "#9ca3af"
-          }
+          ticks: { color: "#9ca3af" }
         },
         y: {
-          ticks: {
-            color: "#9ca3af",
-            precision: 0
-          },
+          ticks: { color: "#9ca3af", precision: 0 },
           beginAtZero: true
         }
       }
@@ -277,44 +269,34 @@ function renderFraudChart(realCount, fraudCount) {
 
 function renderLengthChart(shortCount, mediumCount, longCount) {
   const ctx = document.getElementById("length-chart");
-  if (!ctx || !window.Chart) return;
+  if (!ctx || typeof Chart === "undefined") return;
 
-  if (lengthChart) lengthChart.destroy();
+  if (window.lengthChart) window.lengthChart.destroy();
 
-  lengthChart = new Chart(ctx, {
+  window.lengthChart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: ["Short (<300 chars)", "Medium (300–800)", "Long (>800)"],
+      labels: ["Short (<300)", "Medium (300–800)", "Long (>800)"],
       datasets: [
         {
-          label: "Description length buckets",
           data: [shortCount, mediumCount, longCount],
-          backgroundColor: ["#38bdf8", "#0ea5e9", "#0369a1"]
+          backgroundColor: ["#38bdf8", "#0ea5e9", "#0369a1"],
+          borderWidth: 0
         }
       ]
     },
     options: {
-      responsive: true,
+responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ctx.raw + " postings"
-          }
-        }
+        legend: { display: false }
       },
       scales: {
-        x: {
-          ticks: {
-            color: "#9ca3af"
-          }
+                x: {
+          ticks: { color: "#9ca3af" }
         },
         y: {
-          ticks: {
-            color: "#9ca3af",
-            precision: 0
-          },
+          ticks: { color: "#9ca3af", precision: 0 },
           beginAtZero: true
         }
       }
