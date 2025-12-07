@@ -397,3 +397,9 @@ body {
   height: 220px !important;
   display: block;
 }
+/* Charts canvas size (force) */
+.chart-card canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 260px !important;
+}
