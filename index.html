@@ -106,45 +106,77 @@
 
     <!-- EDA tab -->
     <section id="eda" class="tab-content">
-      <h2>EDA / Dataset</h2>
-      <p class="section-description">
-        Dataset of combined real and fraudulent job postings with text fields and a binary fraudulent label. [file:22]
-      </p>
+  <h2>EDA / Dataset</h2>
+  <p class="section-description">
+    Dataset of combined real and fraudulent job postings with text fields and a binary fraudulent label.
+  </p>
 
-      <section class="eda-summary">
-        <h3>Dataset overview</h3>
-        <ul id="dataset-summary">
-          <li>Total job postings: <span id="total-count">–</span></li>
-          <li>Legitimate postings (fraudulent = 0): <span id="real-count">–</span></li>
-          <li>Fraudulent postings (fraudulent = 1): <span id="fraud-count">–</span></li>
-          <li>Main text fields: title, company_profile, description, requirements, benefits, location, salary_range, employment_type, industry, fulltext. [file:22]</li>
-          <li>Target variable: fraudulent (0 = real, 1 = fake). [file:22]</li>
-        </ul>
-      </section>
+  <section class="eda-summary">
+    <h3>Dataset overview</h3>
+    <ul id="dataset-summary">
+      <li>Total job postings: <span id="total-count">–</span></li>
+      <li>Legitimate postings (fraudulent = 0): <span id="real-count">–</span></li>
+      <li>Fraudulent postings (fraudulent = 1): <span id="fraud-count">–</span></li>
+      <li>Main text fields: title, company_profile, description, requirements, benefits, location, salary_range, employment_type, industry, fulltext.</li>
+      <li>Target variable: fraudulent (0 = real, 1 = fake).</li>
+    </ul>
+  </section>
 
-      <section class="charts">
-        <div class="chart-card">
-          <h3>Fraudulent vs real postings</h3>
-          <canvas id="fraud-chart"></canvas>
-        </div>
+  <section class="charts">
+    <div class="chart-card">
+      <h3>Fraudulent vs real postings</h3>
+      nvas id="fraud-chartt"></canvas>
+    </div>
 
-        <div class="chart-card">
-          <h3>Description length distribution</h3>
-          <canvas id="length-chart"></canvas>
-        </div>
-      </section>
+    <div class="chart-card">
+      <h3>Description length buckets</h3>
+      <vas id="lengthh-chart"></canvas>
+    </div>
 
-      <section class="eda-insights">
-        <h3>Key insights</h3>
-        <ul id="insights-list">
-          <li>Most job postings in the dataset are legitimate, but there is a noticeable fraction of fraudulent ones. [file:22]</li>
-          <li>Fraudulent postings often differ in text length compared with legitimate ones, which can be leveraged as a feature. [file:22]</li>
-          <li>Rich job descriptions, clear company profiles and realistic salary information usually correlate with legitimate jobs. [file:22]</li>
-        </ul>
-      </section>
+    <div class="chart-card">
+      <h3>Length by class (Real vs Fake)</h3>
+      nvas id="length-byy-class-chart"></canvas>
+    </div>
 
-      <div id="eda-error" class="alert hidden"></div>
-    </section>
+    <div class="chart-card">
+      <h3>Missing values (Real vs Fake)</h3>
+      nvas id="missing-chartt"></canvas>
+    </div>
+  </section>
+
+  <section class="eda-insights">
+    <h3>Key insights</h3>
+    <ul id="insights-list">
+      <li>Most job postings in the dataset are legitimate, but there is a noticeable fraction of fraudulent ones.</li>
+      <li>Fraudulent postings often differ in text length compared with legitimate ones, which can be leveraged as a feature.</li>
+      <li>Rich job descriptions, clear company profiles and realistic salary information usually correlate with legitimate jobs.</li>
+    </ul>
+  </section>
+
+  <section class="eda-insights">
+    <h3>Real vs Fake word cloud</h3>
+    <div class="wordcloud-grid">
+      <div class="wordcloud-card">
+        <h4>Real jobs</h4>
+        <p class="wordcloud-text real">
+          experience, full time, team, work, client, project, support,
+          develop, ensure, employee, customer, service, skills, knowledge,
+          business, responsibility, communication, ability, join, solutions
+        </p>
+      </div>
+      <div class="wordcloud-card">
+        <h4>Fake jobs</h4>
+        <p class="wordcloud-text fake">
+          earn, week, flexible hours, degree required, basic knowledge,
+          immediate hiring, contact now, free, remote work, no experience,
+          5000 per week, home based, opportunity, apply now
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div id="eda-error" class="alert hidden"></div>
+</section>
   </main>
 
   <footer class="footer">
