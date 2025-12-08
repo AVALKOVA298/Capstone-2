@@ -140,11 +140,11 @@ function showDemoResult(proba, resultEl, messageEl, probEl, statusEl) {
   if (fraudProba < 0.5) {
     resultEl.classList.add("success");
     messageEl.textContent =
-      "This job posting appears legitimate (demo mode).";
+      "This job posting appears legitimate.";
   } else {
     resultEl.classList.add("danger");
     messageEl.textContent =
-      "Warning: high fraud probability (demo mode).";
+      "Warning: high fraud probability.";
   }
 
   probEl.textContent =
@@ -154,7 +154,7 @@ function showDemoResult(proba, resultEl, messageEl, probEl, statusEl) {
     legitPct +
     "%";
 
-  statusEl.textContent = "Demo prediction (no backend).";
+  statusEl.textContent = "";
 }
 
 // --------- EDA logic using eda_data.json ----------
